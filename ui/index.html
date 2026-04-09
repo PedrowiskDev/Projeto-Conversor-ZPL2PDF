@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZPL²PDF Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root {
+  --bg:#f0ede8; --surface:#faf8f5; --surf2:#f0ede8;
+  --border:#d8d2c8; --border2:#c8c0b4;
+  --ink:#1c1917; --ink2:#44403c; --ink3:#78716c; --ink4:#a8a29e;
+  --orange:#ea580c; --orange-h:#c2410c; --orange-bg:#fff7ed; --orange-b:#fed7aa;
+  --dark:#1c1917; --dark2:#292524; --gold:#f59e0b; --red:#dc2626;
+  --r:10px; --r2:16px;
+}
+
+html,body{height:100%;font-family:'Figtree',sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.5;}
+body{display:flex;flex-direction:column;overflow:hidden;}
+
+/* HEADER */
+header{height:52px;min-height:52px;background:var(--dark);display:flex;align-items:center;gap:16px;padding:0 20px;border-bottom:1px solid rgba(255,255,255,.06);flex-shrink:0;}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none;}
+.logo-badge{background:var(--orange);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:500;padding:4px 10px;border-radius:6px;letter-spacing:-.3px;}
+.logo-name{font-size:14px;font-weight:600;color:rgba(255,255,255,.85);letter-spacing:-.2px;}
+.header-mid{flex:1;display:flex;align-items:center;justify-content:center;}
+.api-pill{display:flex;align-items:center;gap:7px;padding:5px 13px;border-radius:20px;font-size:12px;font-weight:500;border:1px solid rgba(255,255,255,.08);color:rgba(255,255,255,.4);transition:all .3s;}
+.api-pill.online{color:#4ade80;border-color:rgba(74,222,128,.2);background:rgba(74,222,128,.06);}
+.api-pill.offline{color:#f87171;border-color:rgba(248,113,113,.2);background:rgba(248,113,113,.06);}
+.api-dot{width:7px;height:7px;border-radius:50%;background:currentColor;}
+.api-pill.online .api-dot{animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.hpill{font-family:'IBM Plex Mono',monospace;font-size:10px;color:rgba(255,255,255,.25);background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);padding:3px 9px;border-radius:4px;}
+
+/* WORKSPACE */
+.workspace{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1px 400px;}
+.vdivider{background:var(--border);}
+
+/* LEFT */
+.left{display:flex;flex-direction:column;min-height:0;overflow:hidden;background:var(--surface);}
+
+/* Samples */
+.samples{display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:9px 16px;background:var(--surf2);border-bottom:1px solid var(--border);flex-shrink:0;}
+.slabel{font-size:11px;color:var(--ink4);font-weight:500;margin-right:2px;white-space:nowrap;}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:500;background:var(--surface);border:1.5px solid var(--border);color:var(--ink3);cursor:pointer;transition:all .12s;white-space:nowrap;font-family:'Figtree',sans-serif;}
+.chip:hover{background:var(--dark);border-color:var(--dark);color:var(--gold);}
+.chip.active{background:var(--orange);border-color:var(--orange);color:#fff;}
+
+/* Editor section — limitado a 50vh */
+.editor-section{display:flex;flex-direction:column;min-height:0;max-height:50vh;}
+.editor-label{display:flex;align-items:center;gap:8px;padding:8px 16px;background:var(--surf2);border-bottom:1px solid var(--border);flex-shrink:0;}
+.bar-label{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);}
+.ccount{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink4);margin-left:auto;}
+
+.editor-wrap{flex:1;position:relative;overflow:hidden;min-height:0;}
+.gutter{position:absolute;left:0;top:0;bottom:0;width:42px;background:var(--surf2);border-right:1px solid var(--border);pointer-events:none;overflow:hidden;z-index:1;}
+.gutter-inner{padding:18px 0;font-family:'IBM Plex Mono',monospace;font-size:12px;line-height:20px;color:var(--ink4);text-align:right;padding-right:9px;padding-left:4px;user-select:none;}
+#editor{width:100%;height:100%;padding:18px 18px 18px 58px;background:var(--surface);color:var(--ink);border:none;outline:none;resize:none;font-family:'IBM Plex Mono',monospace;font-size:13px;line-height:20px;caret-color:var(--orange);tab-size:2;}
+#editor::placeholder{color:var(--ink4);font-style:italic;}
+#editor::selection{background:rgba(234,88,12,.12);}
+
+/* File bar — abaixo do editor */
+.file-bar{display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--surf2);border-top:1px solid var(--border);flex-shrink:0;}
+.btn-file{display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;border:1.5px solid var(--border2);background:var(--surface);color:var(--ink2);font-family:'Figtree',sans-serif;}
+.btn-file:hover{border-color:var(--orange);color:var(--orange);background:var(--orange-bg);}
+input[type=file]{display:none;}
+.file-hint{font-size:11px;color:var(--ink4);font-family:'IBM Plex Mono',monospace;}
+
+.sel-wrap{position:relative;margin-left:auto;}
+.sel-wrap select{appearance:none;background:var(--surface);color:var(--ink);border:1.5px solid var(--border);padding:7px 26px 7px 10px;border-radius:var(--r);font-family:'IBM Plex Mono',monospace;font-size:11px;cursor:pointer;outline:none;transition:border-color .15s;}
+.sel-wrap select:focus{border-color:var(--orange);}
+.sel-wrap::after{content:'▾';position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:10px;color:var(--ink4);pointer-events:none;}
+
+.btn-clear{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;background:transparent;border:1.5px solid var(--border);border-radius:var(--r);cursor:pointer;color:var(--ink3);transition:all .15s;}
+.btn-clear:hover{border-color:var(--red);color:var(--red);}
+
+/* Espaço restante esquerda */
+.left-spacer{flex:1;background:var(--surf2);border-top:1px solid var(--border);}
+
+/* RIGHT */
+.right{display:flex;flex-direction:column;min-height:0;overflow:hidden;background:var(--dark2);}
+
+.rtop{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--dark);border-bottom:1px solid rgba(255,255,255,.06);flex-shrink:0;}
+.rtop-label{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.3);}
+.fmt-group{display:flex;border:1.5px solid rgba(255,255,255,.1);border-radius:7px;overflow:hidden;}
+.fmt-btn{padding:5px 12px;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;background:transparent;color:rgba(255,255,255,.3);border:none;cursor:pointer;transition:all .13s;}
+.fmt-btn+.fmt-btn{border-left:1px solid rgba(255,255,255,.08);}
+.fmt-btn.active{background:var(--orange);color:#fff;}
+.fmt-btn:not(.active):hover{background:rgba(255,255,255,.07);color:rgba(255,255,255,.7);}
+.rmeta{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:10px;color:rgba(255,255,255,.2);}
+
+.preview{flex:1;overflow:auto;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:20px 16px;gap:14px;}
+.preview::-webkit-scrollbar{width:5px;}
+.preview::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:3px;}
+
+.empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:32px 20px;min-height:160px;}
+.empty-box{width:60px;height:60px;border:2px dashed rgba(255,255,255,.1);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;}
+.empty-title{font-size:17px;font-weight:600;font-style:italic;color:rgba(255,255,255,.18);font-family:'Figtree',sans-serif;}
+.empty-sub{font-size:12px;color:rgba(255,255,255,.14);line-height:1.6;max-width:190px;}
+
+.pdf-card{width:100%;background:#fff;border-radius:var(--r2);overflow:hidden;box-shadow:0 24px 48px rgba(0,0,0,.4),0 6px 12px rgba(0,0,0,.2);animation:sup .28s cubic-bezier(.2,.8,.2,1);}
+@keyframes sup{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.pdf-card embed{display:block;width:100%;height:340px;}
+.pdf-noembed{display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:40px 20px;background:#fff;text-align:center;height:340px;}
+.pdf-noembed.show{display:flex;}
+.pdf-noembed p{font-size:13px;color:#57534e;line-height:1.6;}
+
+/* ACTION SECTION — converter acima do download */
+.action-section{flex-shrink:0;padding:12px 16px;background:var(--dark);border-top:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column;gap:8px;}
+
+.btn-convert{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:11px 20px;background:rgba(255,255,255,.07);color:rgba(255,255,255,.75);border:1.5px solid rgba(255,255,255,.12);border-radius:var(--r);font-family:'Figtree',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;}
+.btn-convert:hover:not(:disabled){background:rgba(255,255,255,.13);color:#fff;border-color:rgba(255,255,255,.22);}
+.btn-convert:disabled{opacity:.4;cursor:not-allowed;}
+
+.spinner{width:14px;height:14px;border:2px solid rgba(234,88,12,.3);border-top-color:var(--orange);border-radius:50%;animation:spin .6s linear infinite;display:none;flex-shrink:0;}
+.spinner.on{display:block;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.btn-dl{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;padding:13px 20px;background:var(--orange);color:#fff;border:none;border-radius:var(--r);font-family:'Figtree',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:all .15s;}
+.btn-dl:hover:not(:disabled){background:var(--orange-h);transform:translateY(-1px);box-shadow:0 6px 20px rgba(234,88,12,.4);}
+.btn-dl:active:not(:disabled){transform:translateY(0);}
+.btn-dl:disabled{opacity:.3;cursor:not-allowed;}
+
+.statusbar{padding:6px 16px;flex-shrink:0;background:var(--dark2);border-top:1px solid rgba(255,255,255,.04);font-family:'IBM Plex Mono',monospace;font-size:11px;color:rgba(255,255,255,.22);display:flex;align-items:center;min-height:26px;}
+.statusbar.ok{color:#4ade80;}
+.statusbar.err{color:#f87171;}
+
+.toast-zone{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:999;display:flex;flex-direction:column;gap:8px;pointer-events:none;}
+.toast{padding:10px 18px;border-radius:var(--r);font-size:13px;font-weight:500;pointer-events:auto;animation:tin .2s ease;box-shadow:0 4px 20px rgba(0,0,0,.25);}
+@keyframes tin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.toast.info{background:var(--dark);color:rgba(255,255,255,.85);border:1px solid rgba(255,255,255,.08);}
+.toast.ok{background:#14532d;color:#bbf7d0;border:1px solid #166534;}
+.toast.error{background:#7f1d1d;color:#fecaca;border:1px solid #991b1b;}
+
+.rsel{position:relative;}
+.rsel select{appearance:none;background:rgba(255,255,255,.05);color:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.1);padding:5px 22px 5px 9px;border-radius:7px;font-family:'IBM Plex Mono',monospace;font-size:11px;cursor:pointer;outline:none;}
+.rsel::after{content:'▾';position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:9px;color:rgba(255,255,255,.3);pointer-events:none;}
+
+@media(max-width:860px){
+  .workspace{grid-template-columns:1fr;grid-template-rows:auto 1px 1fr;}
+  .vdivider{height:1px;width:100%;}
+  body{overflow:auto;}
+  .editor-section{max-height:40vh;}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <a class="logo" href="#">
+    <span class="logo-badge">ZPL²PDF</span>
+    <span class="logo-name">Studio</span>
+  </a>
+  <div class="header-mid">
+    <div class="api-pill" id="api-pill">
+      <span class="api-dot"></span>
+      <span id="api-txt">verificando API…</span>
+    </div>
+  </div>
+  <div style="display:flex;gap:7px;align-items:center;">
+    <span class="hpill">brunoleocam/ZPL2PDF</span>
+    <span class="hpill">v3.1.1</span>
+  </div>
+</header>
+
+<div class="workspace">
+
+  <!-- LEFT -->
+  <div class="left">
+
+    <div class="samples">
+      <span class="slabel">Exemplos:</span>
+      <button class="chip active" data-s="etiqueta" onclick="loadSample(this)">🏷 Etiqueta</button>
+      <button class="chip" data-s="code128"  onclick="loadSample(this)">▮ Code 128</button>
+      <button class="chip" data-s="code39"   onclick="loadSample(this)">▮ Code 39</button>
+      <button class="chip" data-s="qr"       onclick="loadSample(this)">▣ QR Code</button>
+      <button class="chip" data-s="completo" onclick="loadSample(this)">★ Completo</button>
+      <button class="chip" data-s="multi"    onclick="loadSample(this)">⊞ Multi</button>
+    </div>
+
+    <!-- Editor — max 50vh -->
+    <div class="editor-section">
+      <div class="editor-label">
+        <span class="bar-label">● Código ZPL</span>
+        <span class="ccount" id="ccount">0 chars</span>
+      </div>
+      <div class="editor-wrap">
+        <div class="gutter"><div class="gutter-inner" id="gutter"></div></div>
+        <textarea id="editor" spellcheck="false" autocomplete="off"
+          placeholder="Cole seu código ZPL aqui…&#10;^XA&#10;^FO50,50^FDHello World^FS&#10;^XZ"></textarea>
+      </div>
+    </div>
+
+    <!-- Botão de arquivo — abaixo do editor -->
+    <div class="file-bar">
+      <label class="btn-file" for="file-input">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M2 3h5l1.5 2H14v9H2z"/>
+        </svg>
+        Abrir arquivo
+        <input type="file" id="file-input" accept=".zpl,.txt,.prn,.imp,.zip">
+      </label>
+      <span class="file-hint">.zpl · .txt · .zip</span>
+      <div class="sel-wrap">
+        <select id="dpi">
+          <option value="152">152 dpi</option>
+          <option value="203" selected>203 dpi</option>
+          <option value="300">300 dpi</option>
+          <option value="600">600 dpi</option>
+        </select>
+      </div>
+      <button class="btn-clear" onclick="doClear()" title="Limpar editor">
+        <svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 1l12 12M13 1L1 13"/></svg>
+      </button>
+    </div>
+
+    <!-- Espaço restante -->
+    <div class="left-spacer"></div>
+
+  </div>
+
+  <div class="vdivider"></div>
+
+  <!-- RIGHT -->
+  <div class="right">
+
+    <div class="rtop">
+      <span class="rtop-label">● Preview</span>
+      <div class="fmt-group">
+        <button class="fmt-btn active" data-f="pdf" onclick="setFmt(this)">PDF</button>
+        <button class="fmt-btn" data-f="png" onclick="setFmt(this)">PNG</button>
+      </div>
+      <div class="rsel" style="margin-left:8px;">
+        <select id="renderer">
+          <option value="offline" selected>offline</option>
+          <option value="auto">auto</option>
+          <option value="labelary">labelary</option>
+        </select>
+      </div>
+      <span class="rmeta" id="rmeta">—</span>
+    </div>
+
+    <div class="preview" id="preview">
+      <div class="empty">
+        <div class="empty-box">📄</div>
+        <div class="empty-title">Pronto para converter</div>
+        <div class="empty-sub">Clique em Converter para gerar o PDF</div>
+      </div>
+    </div>
+
+    <!-- Converter + Download empilhados -->
+    <div class="action-section">
+      <button class="btn-convert" id="conv-btn" onclick="doConvert()">
+        <div class="spinner" id="spin"></div>
+        <svg id="conv-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M13 8A5 5 0 1 1 8 3M13 3v5h-5"/></svg>
+        <span id="conv-label">Converter  ·  Ctrl+Enter</span>
+      </button>
+      <button class="btn-dl" id="dl-btn" onclick="doDownload()" disabled>
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M10 3v10M6 9l4 4 4-4"/><path d="M3 15h14"/>
+        </svg>
+        <span id="dl-label">Baixar PDF</span>
+      </button>
+    </div>
+
+    <div class="statusbar" id="sbar">Aguardando…</div>
+
+  </div>
+
+</div>
+
+<div class="toast-zone" id="toasts"></div>
+
+<script>
+const API=(location.hostname==='localhost'||location.hostname==='127.0.0.1')
+  ?'http://localhost:5000'
+  :`${location.protocol}//${location.hostname}:5000`;
+
+let blob=null,ext='pdf',fmt='pdf';
+
+const S={
+etiqueta:`^XA
+^PW812
+^LL609
+^CF0,42
+^FO40,32^FDEmpresa XYZ Ltda.^FS
+^FO40,88^GB730,3,3^FS
+^FO40,104^CF0,27^FDProduto: Caixa Premium 500g^FS
+^FO40,144^CF0,24^FDLote: BR-2026-A001^FS
+^FO40,180^CF0,24^FDValidade: Dezembro / 2026^FS
+^FO40,218^GB730,3,3^FS
+^FO40,236^CF0,20^FDArmazenar em local fresco e seco.^FS
+^XZ`,
+code128:`^XA
+^PW812^LL430
+^CF0,36
+^FO50,28^FDCode 128 — Rastreamento^FS
+^FO50,76^GB710,2,2^FS
+^FO55,96^BY2,3,140
+^BCN,140,Y,N,N
+^FD00123456789012^FS
+^FO55,285^CF0,22^FDSKU: 00123456789012^FS
+^XZ`,
+code39:`^XA
+^PW812^LL400
+^CF0,34
+^FO50,26^FDCode 39 — Patrimônio^FS
+^FO50,72^GB710,2,2^FS
+^FO55,92^BY2,3,110
+^B3N,N,110,Y,N
+^FDPAT-2026-0842^FS
+^FO55,255^CF0,22^FDPatrimônio: PAT-2026-0842^FS
+^XZ`,
+qr:`^XA
+^PW812^LL520
+^CF0,34
+^FO50,26^FDQR Code — Nota Fiscal^FS
+^FO50,74^GB710,2,2^FS
+^FO60,96
+^BQN,2,9
+^FDQA,https://nfe.fazenda.gov.br/portal/consulta.aspx^FS
+^FO330,118^CF0,22^FDNota Fiscal Eletrônica^FS
+^FO330,155^CF0,18^FDChave: 9999...9999^FS
+^FO330,190^CF0,18^FDEmitida: 08/04/2026^FS
+^XZ`,
+completo:`^XA
+^PW812^LL980
+^FO0,0^GB812,86,86^FS
+^FO22,16^CF0,48^FR^FDLogística Express^FS
+^FO22,112^CF0,30^FDDestinatário:^FS
+^FO22,154^CF0,38^FDMaria Aparecida Ferreira^FS
+^FO22,206^CF0,26^FDAv. Paulista, 1578 — Sala 720^FS
+^FO22,244^CF0,26^FDSão Paulo — SP — 01310-200^FS
+^FO22,288^GB768,3,3^FS
+^FO22,306^CF0,23^FDRemetente: Loja Virtual ABC^FS
+^FO22,342^CF0,22^FDPedido #SP-0084291   08/04/2026^FS
+^FO22,416^GB768,3,3^FS
+^FO22,436^BY2,3,155
+^BCN,155,Y,N,N
+^FDSP0084291001^FS
+^FO22,638^GB768,3,3^FS
+^FO22,658^CF0,21^FD⚠  FRÁGIL — Não empilhe^FS
+^XZ`,
+multi:`^XA
+^PW609^LL406
+^CF0,32
+^FO28,22^FDEtiqueta 1 / 3^FS
+^FO28,66^GB552,2,2^FS
+^FO28,86^BY2,2,100^BCN,100,Y,N,N^FDITEM-001^FS
+^FO28,230^CF0,21^FDProduto A^FS
+^XZ
+
+^XA
+^PW609^LL406
+^CF0,32
+^FO28,22^FDEtiqueta 2 / 3^FS
+^FO28,66^GB552,2,2^FS
+^FO28,86^BY2,2,100^BCN,100,Y,N,N^FDITEM-002^FS
+^FO28,230^CF0,21^FDProduto B^FS
+^XZ
+
+^XA
+^PW609^LL406
+^CF0,32
+^FO28,22^FDEtiqueta 3 / 3^FS
+^FO28,66^GB552,2,2^FS
+^FO28,86^BY2,2,100^BCN,100,Y,N,N^FDITEM-003^FS
+^FO28,230^CF0,21^FDProduto C^FS
+^XZ`
+};
+
+const ed=document.getElementById('editor');
+const gt=document.getElementById('gutter');
+
+function syncGutter(){
+  const n=ed.value.split('\n').length;
+  gt.innerHTML=Array.from({length:n},(_,i)=>`<div>${i+1}</div>`).join('');
+  gt.scrollTop=ed.scrollTop;
+  document.getElementById('ccount').textContent=ed.value.length.toLocaleString('pt-BR')+' chars';
+}
+ed.addEventListener('input',syncGutter);
+ed.addEventListener('scroll',()=>{gt.scrollTop=ed.scrollTop;});
+ed.addEventListener('keydown',e=>{
+  if(e.key==='Tab'){
+    e.preventDefault();
+    const s=ed.selectionStart;
+    ed.value=ed.value.slice(0,s)+'  '+ed.value.slice(ed.selectionEnd);
+    ed.selectionStart=ed.selectionEnd=s+2;syncGutter();
+  }
+  if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();doConvert();}
+});
+
+function loadSample(btn){
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+  btn.classList.add('active');
+  ed.value=S[btn.dataset.s]||'';syncGutter();
+}
+
+function doClear(){
+  ed.value='';syncGutter();
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+  document.getElementById('preview').innerHTML=`<div class="empty"><div class="empty-box">📄</div><div class="empty-title">Editor limpo</div><div class="empty-sub">Carregue um ZPL e converta.</div></div>`;
+  setStatus('Editor limpo.','');
+  blob=null;
+  document.getElementById('dl-btn').disabled=true;
+  document.getElementById('dl-label').textContent='Baixar PDF';
+}
+
+function setFmt(btn){
+  document.querySelectorAll('.fmt-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');fmt=btn.dataset.f;
+}
+
+document.getElementById('file-input').addEventListener('change',async function(){
+  const f=this.files[0];if(!f){return;}
+  this.value='';
+  if(f.name.toLowerCase().endsWith('.zip')){
+    toast('Lendo ZIP…','info');
+    try{
+      const zip=await JSZip.loadAsync(f);
+      const exts=['.zpl','.txt','.prn','.imp'];
+      let found=null,foundName='';
+      zip.forEach((path,entry)=>{
+        if(!found&&!entry.dir){
+          if(exts.some(x=>path.toLowerCase().endsWith(x))){found=entry;foundName=path;}
+        }
+      });
+      if(!found){toast('Nenhum .zpl/.txt encontrado no ZIP','error');return;}
+      ed.value=await found.async('string');
+      syncGutter();
+      document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+      toast('ZIP extraído: '+foundName,'ok');
+    }catch(err){toast('Erro no ZIP: '+err.message,'error');}
+  }else{
+    const r=new FileReader();
+    r.onload=e=>{ed.value=e.target.result;syncGutter();toast('Carregado: '+f.name,'info');};
+    r.readAsText(f,'UTF-8');
+  }
+});
+
+async function checkApi(){
+  const p=document.getElementById('api-pill'),t=document.getElementById('api-txt');
+  try{
+    const r=await fetch(`${API}/api/health`,{signal:AbortSignal.timeout(4000)});
+    if(r.ok){p.className='api-pill online';t.textContent='API online · localhost:5000';return;}
+    throw 0;
+  }catch{p.className='api-pill offline';t.textContent='API offline — inicie o ZPL2PDF';}
+}
+
+async function doConvert(){
+  const zpl=ed.value.trim();
+  if(!zpl){toast('Cole o ZPL antes de converter.','error');return;}
+  const cbtn=document.getElementById('conv-btn'),sp=document.getElementById('spin');
+  const icon=document.getElementById('conv-icon'),lbl=document.getElementById('conv-label');
+  cbtn.disabled=true;sp.classList.add('on');icon.style.display='none';lbl.textContent='Convertendo…';
+  setStatus('Convertendo…','');
+  const dpi=parseInt(document.getElementById('dpi').value);
+  const renderer=document.getElementById('renderer').value;
+  try{
+    const t0=Date.now();
+    const resp=await fetch(`${API}/api/convert`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({zpl,format:fmt,dpi,renderer}),
+      signal:AbortSignal.timeout(30000)
+    });
+    const data=await resp.json();
+    if(!resp.ok||!data.success)throw new Error(data.message||data.error||'Erro na API');
+    const ms=Date.now()-t0,pages=data.pages||1;
+    if(fmt==='pdf'){
+      const bytes=Uint8Array.from(atob(data.pdf),c=>c.charCodeAt(0));
+      blob=new Blob([bytes],{type:'application/pdf'});ext='pdf';showPdf(blob);
+    }else{
+      const imgs=data.images||(data.image?[data.image]:[]);
+      blob=null;ext='png';showPng(imgs);
+    }
+    document.getElementById('rmeta').textContent=`${pages} pág · ${ms}ms`;
+    setStatus(`✓ ${pages} página(s) em ${ms}ms`,'ok');
+    toast('Convertido com sucesso!','ok');
+    document.getElementById('dl-btn').disabled=false;
+    document.getElementById('dl-label').textContent=`Baixar ${fmt.toUpperCase()} · ${pages} pág.`;
+  }catch(err){
+    const msg=err.message.includes('fetch')||err.message.includes('Failed')
+      ?'API inacessível. Verifique se o ZPL2PDF está rodando.':err.message;
+    setStatus('✗ '+msg,'err');toast(msg,'error');
+    document.getElementById('preview').innerHTML=`<div class="empty"><div class="empty-box" style="border-color:rgba(248,113,113,.3)">⚠</div><div class="empty-title" style="color:#f87171">Erro</div><div class="empty-sub" style="color:rgba(255,255,255,.3)">${esc(msg)}</div></div>`;
+  }finally{
+    cbtn.disabled=false;sp.classList.remove('on');icon.style.display='';lbl.textContent='Converter  ·  Ctrl+Enter';
+  }
+}
+
+function showPdf(b){
+  const url=URL.createObjectURL(b);
+  document.getElementById('preview').innerHTML=`
+    <div class="pdf-card">
+      <embed src="${url}#toolbar=0&navpanes=0" type="application/pdf" id="pembed"/>
+      <div class="pdf-noembed" id="pnoembed">
+        <p style="font-size:20px">📄</p>
+        <p>Seu browser não exibe PDF inline.<br>Use o botão <strong>Baixar PDF</strong> abaixo.</p>
+      </div>
+    </div>`;
+  setTimeout(()=>{
+    const e=document.getElementById('pembed'),n=document.getElementById('pnoembed');
+    if(e&&e.clientHeight<10)n&&n.classList.add('show');
+  },900);
+}
+
+function showPng(imgs){
+  if(!imgs.length)return;
+  document.getElementById('preview').innerHTML=imgs.map((b64,i)=>
+    `<div class="pdf-card" style="animation-delay:${i*50}ms"><img src="data:image/png;base64,${b64}" style="width:100%;display:block;" alt="Página ${i+1}"></div>`
+  ).join('');
+}
+
+function doDownload(){
+  if(!blob){toast('Converta primeiro!','error');return;}
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  const ts=new Date().toISOString().slice(0,19).replace(/[T:]/g,'-');
+  a.href=url;a.download=`etiqueta_${ts}.${ext}`;a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),5000);
+}
+
+function setStatus(msg,type){
+  const el=document.getElementById('sbar');el.textContent=msg;
+  el.className='statusbar'+(type?' '+type:'');
+}
+function toast(msg,type='info'){
+  const w=document.getElementById('toasts'),d=document.createElement('div');
+  d.className='toast '+type;d.textContent=msg;w.appendChild(d);
+  setTimeout(()=>d.remove(),4000);
+}
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+window.addEventListener('load',()=>{
+  loadSample(document.querySelector('.chip'));
+  checkApi();setInterval(checkApi,15000);
+});
+</script>
+</body>
+</html>
