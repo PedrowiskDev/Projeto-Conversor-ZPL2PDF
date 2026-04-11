@@ -78,6 +78,15 @@ input[type=file]{display:none;}
 .btn-clear{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;background:transparent;border:1.5px solid var(--border);border-radius:var(--r);cursor:pointer;color:var(--ink3);transition:all .15s;}
 .btn-clear:hover{border-color:var(--red);color:var(--red);}
 
+/* Campos de dimensão */
+.dims-bar{display:flex;align-items:stretch;gap:0;background:var(--surf2);border-top:1px solid var(--border);flex-shrink:0;}
+.dim-field{display:flex;flex-direction:column;flex:1;padding:9px 14px;border-right:1px solid var(--border);gap:3px;}
+.dim-field:last-child{border-right:none;}
+.dim-label{display:flex;align-items:center;gap:5px;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--ink4);}
+.dim-input{background:transparent;border:none;outline:none;font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:500;color:var(--ink);width:100%;padding:0;caret-color:var(--orange);}
+.dim-input::placeholder{color:var(--ink4);font-weight:400;}
+.dim-input:focus{color:var(--orange);}
+
 /* Espaço restante esquerda */
 .left-spacer{flex:1;background:var(--surf2);border-top:1px solid var(--border);}
 
@@ -137,7 +146,8 @@ input[type=file]{display:none;}
 .toast.error{background:#7f1d1d;color:#fecaca;border:1px solid #991b1b;}
 
 .rsel{position:relative;}
-.rsel select{appearance:none;background:rgba(255,255,255,.05);color:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.1);padding:5px 22px 5px 9px;border-radius:7px;font-family:'IBM Plex Mono',monospace;font-size:11px;cursor:pointer;outline:none;}
+.rsel select{appearance:none;background:#2a2522;color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.1);padding:5px 22px 5px 9px;border-radius:7px;font-family:'IBM Plex Mono',monospace;font-size:11px;cursor:pointer;outline:none;}
+.rsel select option{background:#2a2522;color:#e7e5e4;}
 .rsel::after{content:'▾';position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:9px;color:rgba(255,255,255,.3);pointer-events:none;}
 
 @media(max-width:860px){
@@ -216,6 +226,24 @@ input[type=file]{display:none;}
       <button class="btn-clear" onclick="doClear()" title="Limpar editor">
         <svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 1l12 12M13 1L1 13"/></svg>
       </button>
+    </div>
+
+    <!-- Largura · Altura -->
+    <div class="dims-bar">
+      <div class="dim-field">
+        <span class="dim-label">
+          <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6"><line x1="0" y1="6" x2="12" y2="6"/><line x1="0" y1="3" x2="0" y2="9"/><line x1="12" y1="3" x2="12" y2="9"/></svg>
+          Largura (pol.)
+        </span>
+        <input class="dim-input" id="dim-width" type="number" value="4" min="1" max="20" step="0.5" placeholder="4">
+      </div>
+      <div class="dim-field">
+        <span class="dim-label">
+          <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6"><line x1="6" y1="0" x2="6" y2="12"/><line x1="3" y1="0" x2="9" y2="0"/><line x1="3" y1="12" x2="9" y2="12"/></svg>
+          Altura (pol.)
+        </span>
+        <input class="dim-input" id="dim-height" type="number" value="6" min="1" max="20" step="0.5" placeholder="6">
+      </div>
     </div>
 
     <!-- Espaço restante -->
@@ -460,11 +488,16 @@ async function doConvert(){
   setStatus('Convertendo…','');
   const dpi=parseInt(document.getElementById('dpi').value);
   const renderer=document.getElementById('renderer').value;
+  const dimW=parseFloat(document.getElementById('dim-width').value)||0;
+  const dimH=parseFloat(document.getElementById('dim-height').value)||0;
   try{
     const t0=Date.now();
+    const body={zpl,format:fmt,dpi,renderer};
+    if(dimW>0){body.width=dimW;body.unit='in';}
+    if(dimH>0){body.height=dimH;body.unit='in';}
     const resp=await fetch(`${API}/api/convert`,{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({zpl,format:fmt,dpi,renderer}),
+      body:JSON.stringify(body),
       signal:AbortSignal.timeout(30000)
     });
     const data=await resp.json();
