@@ -4,10 +4,53 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ZPL²PDF Studio</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="lib/jszip.min.js"></script>
+<script src="lib/xlsx.full.min.js"></script>
+<script src="lib/zxing.min.js"></script>
 <style>
+@font-face {
+  font-family: 'Figtree';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('fonts/figtree-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Figtree';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('fonts/figtree-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Figtree';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('fonts/figtree-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Figtree';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('fonts/figtree-700.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('fonts/ibm-plex-mono-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('fonts/ibm-plex-mono-500.woff2') format('woff2');
+}
+
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 
 :root {
@@ -19,7 +62,7 @@
   --r:10px; --r2:16px;
 }
 
-html,body{height:100%;font-family:'Figtree',sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.5;}
+html,body{height:100%;font-family:'Figtree',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.5;}
 body{display:flex;flex-direction:column;overflow:hidden;}
 
 /* HEADER */
@@ -31,31 +74,37 @@ header{height:52px;min-height:52px;background:var(--dark);display:flex;align-ite
 .api-pill{display:flex;align-items:center;gap:7px;padding:5px 13px;border-radius:20px;font-size:12px;font-weight:500;border:1px solid rgba(255,255,255,.08);color:rgba(255,255,255,.4);transition:all .3s;}
 .api-pill.online{color:#4ade80;border-color:rgba(74,222,128,.2);background:rgba(74,222,128,.06);}
 .api-pill.offline{color:#f87171;border-color:rgba(248,113,113,.2);background:rgba(248,113,113,.06);}
+.api-pill.cloud{color:#38bdf8;border-color:rgba(56,189,248,.25);background:rgba(56,189,248,.08);}
 .api-dot{width:7px;height:7px;border-radius:50%;background:currentColor;}
 .api-pill.online .api-dot{animation:pulse 2s infinite;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 .hpill{font-family:'IBM Plex Mono',monospace;font-size:10px;color:rgba(255,255,255,.25);background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);padding:3px 9px;border-radius:4px;}
 
 /* WORKSPACE */
-.workspace{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1px 400px;}
+.workspace{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1px 420px;}
 .vdivider{background:var(--border);}
 
 /* LEFT */
 .left{display:flex;flex-direction:column;min-height:0;overflow:hidden;background:var(--surface);}
 
 /* Samples */
-.samples{display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:9px 16px;background:var(--surf2);border-bottom:1px solid var(--border);flex-shrink:0;}
+.samples{display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:8px 16px;background:var(--surf2);border-bottom:1px solid var(--border);flex-shrink:0;}
 .slabel{font-size:11px;color:var(--ink4);font-weight:500;margin-right:2px;white-space:nowrap;}
 .chip{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:500;background:var(--surface);border:1.5px solid var(--border);color:var(--ink3);cursor:pointer;transition:all .12s;white-space:nowrap;font-family:'Figtree',sans-serif;}
 .chip:hover{background:var(--dark);border-color:var(--dark);color:var(--gold);}
 .chip.active{background:var(--orange);border-color:var(--orange);color:#fff;}
 
-/* Editor section — limitado a 50vh */
-.editor-section{display:flex;flex-direction:column;min-height:0;max-height:50vh;}
-.editor-label{display:flex;align-items:center;gap:8px;padding:8px 16px;background:var(--surf2);border-bottom:1px solid var(--border);flex-shrink:0;}
-.bar-label{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);}
+/* Left Tabs */
+.left-tabs{display:flex;align-items:center;gap:4px;padding:0 16px;background:var(--surf2);border-bottom:1px solid var(--border);flex-shrink:0;}
+.ltab-btn{display:inline-flex;align-items:center;gap:7px;padding:9px 14px;border:none;border-bottom:2.5px solid transparent;background:transparent;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;letter-spacing:.05em;text-transform:uppercase;color:var(--ink3);cursor:pointer;transition:all .15s;}
+.ltab-btn:hover{color:var(--ink);}
+.ltab-btn.active{color:var(--orange);border-bottom-color:var(--orange);background:var(--surface);}
+.ltab-badge{background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-b);border-radius:10px;padding:1px 7px;font-size:10px;font-weight:600;}
 .ccount{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink4);margin-left:auto;}
 
+/* Pane Editor */
+#pane-editor{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;}
+.editor-section{display:flex;flex-direction:column;flex:1;min-height:0;}
 .editor-wrap{flex:1;position:relative;overflow:hidden;min-height:0;}
 .gutter{position:absolute;left:0;top:0;bottom:0;width:42px;background:var(--surf2);border-right:1px solid var(--border);pointer-events:none;overflow:hidden;z-index:1;}
 .gutter-inner{padding:18px 0;font-family:'IBM Plex Mono',monospace;font-size:12px;line-height:20px;color:var(--ink4);text-align:right;padding-right:9px;padding-left:4px;user-select:none;}
@@ -63,12 +112,97 @@ header{height:52px;min-height:52px;background:var(--dark);display:flex;align-ite
 #editor::placeholder{color:var(--ink4);font-style:italic;}
 #editor::selection{background:rgba(234,88,12,.12);}
 
-/* File bar — abaixo do editor */
-.file-bar{display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--surf2);border-top:1px solid var(--border);flex-shrink:0;}
-.btn-file{display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;border:1.5px solid var(--border2);background:var(--surface);color:var(--ink2);font-family:'Figtree',sans-serif;}
+/* Pane UpSeller (Conferência / SKU) */
+#pane-upseller{display:none;flex-direction:column;flex:1;min-height:0;overflow:hidden;background:var(--surface);}
+.upseller-cfg{display:flex;flex-direction:column;gap:8px;padding:10px 16px;background:var(--surf2);border-bottom:1px solid var(--border);flex-shrink:0;}
+.cfg-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.cfg-group{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--ink2);font-weight:500;}
+.cfg-group label{cursor:pointer;display:inline-flex;align-items:center;gap:5px;user-select:none;}
+.cfg-group input[type=checkbox]{accent-color:var(--orange);width:14px;height:14px;cursor:pointer;}
+.cfg-select,.cfg-num{background:var(--surface);color:var(--ink);border:1.5px solid var(--border);padding:4px 8px;border-radius:6px;font-family:'IBM Plex Mono',monospace;font-size:11px;outline:none;}
+.cfg-select:focus,.cfg-num:focus{border-color:var(--orange);}
+.cfg-num{width:58px;text-align:center;}
+.cfg-adv{font-size:11px;color:var(--ink3);}
+.cfg-adv summary{cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink3);user-select:none;}
+
+.upseller-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 16px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;}
+.btn-sm{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--border2);background:var(--surface);color:var(--ink2);font-family:'Figtree',sans-serif;transition:all .14s;}
+.btn-sm:hover{border-color:var(--orange);color:var(--orange);background:var(--orange-bg);}
+.btn-sm.primary{background:var(--orange);border-color:var(--orange);color:#fff;}
+.btn-sm.primary:hover{background:var(--orange-h);}
+
+.print-tip{padding:6px 12px;background:var(--orange-bg);border:1px solid var(--orange-b);border-radius:6px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--orange-h);font-weight:500;}
+
+.colmap-bar{display:none;align-items:center;gap:10px;flex-wrap:wrap;padding:7px 16px;background:var(--surf2);border-bottom:1px solid var(--border);flex-shrink:0;}
+.colmap-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--ink3);}
+.colmap-item label{font-family:'IBM Plex Mono',monospace;font-size:10px;}
+.colmap-item select{background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink);}
+
+.upseller-alerts{display:none;flex-direction:column;gap:4px;padding:8px 16px;background:var(--surf2);border-bottom:1px solid var(--border);flex-shrink:0;}
+.u-alert{font-size:11.5px;font-weight:500;padding:4px 9px;border-radius:6px;font-family:'Figtree',sans-serif;}
+.u-alert-warn{background:#fef3c7;color:#92400e;border:1px solid #fde68a;}
+.u-alert-err{background:#fee2e2;color:#991b1b;border:1px solid #fecaca;}
+.u-alert-info{background:var(--orange-bg);color:var(--orange-h);border:1px solid var(--orange-b);}
+
+.table-scroll{flex:1;overflow:auto;min-height:0;}
+.u-table{width:100%;border-collapse:collapse;font-size:12px;}
+.u-table th{position:sticky;top:0;background:var(--surf2);border-bottom:1.5px solid var(--border);padding:7px 10px;text-align:left;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500;text-transform:uppercase;color:var(--ink3);z-index:2;}
+.u-table td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top;}
+.u-table tr:hover td{background:rgba(234,88,12,.03);}
+.u-td-num{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink4);width:32px;text-align:center;}
+.u-td-thumb{width:68px;}
+.u-thumb{width:58px;height:86px;object-fit:contain;border:1px solid var(--border);border-radius:4px;background:#fff;cursor:pointer;display:block;transition:transform .12s;}
+.u-thumb:hover{transform:scale(1.06);border-color:var(--orange);}
+.u-thumb-placeholder{width:58px;height:86px;border:1px dashed var(--border2);border-radius:4px;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink4);cursor:pointer;}
+.u-code-pill{display:inline-block;background:var(--surf2);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink);margin-bottom:3px;}
+.u-danfe-pill{font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--ink4);word-break:break-all;}
+.u-order-select{width:100%;max-width:210px;background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:4px 6px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink);}
+.u-ordersn{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink3);margin-top:3px;}
+.u-order-notes{font-size:10.5px;color:var(--orange-h);background:var(--orange-bg);padding:2px 5px;border-radius:4px;margin-top:3px;}
+.u-sku-input{width:100%;min-width:150px;background:var(--surface);border:1.5px solid var(--border2);border-radius:6px;padding:5px 8px;font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:500;color:var(--ink);outline:none;}
+.u-sku-input:focus{border-color:var(--orange);}
+.u-printed-preview{font-size:10.5px;color:var(--ink3);margin-top:4px;}
+.u-printed-preview code{font-family:'IBM Plex Mono',monospace;color:var(--ink);background:var(--surf2);padding:1px 4px;border-radius:3px;}
+.u-item-line{font-size:11px;line-height:1.35;margin-bottom:3px;}
+.u-space-info{display:flex;flex-direction:column;gap:1px;font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--ink3);}
+.u-badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500;white-space:nowrap;}
+.u-badge-ok{background:#dcfce7;color:#166534;border:1px solid #86efac;}
+.u-badge-warn{background:#fef3c7;color:#92400e;border:1px solid #fde68a;}
+.u-badge-sum{background:#ffedd5;color:#c2410c;border:1px solid #fdba74;font-weight:600;}
+.u-badge-err{background:#fee2e2;color:#991b1b;border:1px solid #fecaca;}
+
+/* Pane Logs / Diagnóstico */
+#pane-logs{display:none;flex-direction:column;flex:1;min-height:0;overflow:hidden;background:#181615;color:#e7e5e4;}
+.logs-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 16px;background:#211e1c;border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0;}
+.logs-title{font-family:'IBM Plex Mono',monospace;font-size:11px;color:rgba(255,255,255,.6);margin-right:auto;}
+.btn-log{background:rgba(255,255,255,.07);color:#e7e5e4;border:1px solid rgba(255,255,255,.14);border-radius:6px;padding:4px 10px;font-family:'IBM Plex Mono',monospace;font-size:11px;cursor:pointer;transition:all .14s;}
+.btn-log:hover{background:var(--orange);border-color:var(--orange);color:#fff;}
+.log-list{flex:1;overflow:auto;padding:10px 14px;display:flex;flex-direction:column;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;}
+.log-empty{color:rgba(255,255,255,.35);padding:20px;text-align:center;}
+.log-item{padding:7px 10px;border-radius:6px;background:rgba(255,255,255,.03);border-left:3px solid #78716c;}
+.log-item.log-ok{border-left-color:#4ade80;background:rgba(74,222,128,.05);}
+.log-item.log-warn{border-left-color:#fbbf24;background:rgba(251,191,36,.07);}
+.log-item.log-error{border-left-color:#f87171;background:rgba(248,113,113,.09);}
+.log-head{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;}
+.log-ts{color:rgba(255,255,255,.38);font-size:10.5px;}
+.log-lvl{font-size:9.5px;font-weight:600;padding:1px 5px;border-radius:3px;background:rgba(255,255,255,.1);}
+.log-lvl-ok{background:rgba(74,222,128,.2);color:#86efac;}
+.log-lvl-warn{background:rgba(251,191,36,.2);color:#fde68a;}
+.log-lvl-error{background:rgba(248,113,113,.25);color:#fecaca;}
+.log-cat{color:var(--gold);font-weight:500;font-size:10.5px;}
+.log-msg{color:#f5f5f4;word-break:break-word;}
+.log-details{margin-top:5px;padding:6px 8px;background:rgba(0,0,0,.35);border-radius:4px;color:#d6d3d1;font-size:10.5px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;}
+
+.pdf-page-caption{display:flex;align-items:center;justify-content:space-between;padding:6px 12px;background:#f5f5f4;border-bottom:1px solid #e7e5e4;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#44403c;}
+
+/* File bar — abaixo do painel principal */
+.file-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 16px;background:var(--surf2);border-top:1px solid var(--border);flex-shrink:0;}
+.btn-file{display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:var(--r);font-size:12.5px;font-weight:600;cursor:pointer;transition:all .15s;border:1.5px solid var(--border2);background:var(--surface);color:var(--ink2);font-family:'Figtree',sans-serif;}
 .btn-file:hover{border-color:var(--orange);color:var(--orange);background:var(--orange-bg);}
+.btn-file.excel{border-color:var(--orange-b);background:var(--orange-bg);color:var(--orange-h);}
+.btn-file.excel:hover{border-color:var(--orange);background:var(--orange);color:#fff;}
 input[type=file]{display:none;}
-.file-hint{font-size:11px;color:var(--ink4);font-family:'IBM Plex Mono',monospace;}
+.file-hint{font-size:11px;color:var(--ink3);font-family:'IBM Plex Mono',monospace;max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 
 .sel-wrap{position:relative;margin-left:auto;}
 .sel-wrap select{appearance:none;background:var(--surface);color:var(--ink);border:1.5px solid var(--border);padding:7px 26px 7px 10px;border-radius:var(--r);font-family:'IBM Plex Mono',monospace;font-size:11px;cursor:pointer;outline:none;transition:border-color .15s;}
@@ -80,26 +214,27 @@ input[type=file]{display:none;}
 
 /* Campos de dimensão */
 .dims-bar{display:flex;align-items:stretch;gap:0;background:var(--surf2);border-top:1px solid var(--border);flex-shrink:0;}
-.dim-field{display:flex;flex-direction:column;flex:1;padding:9px 14px;border-right:1px solid var(--border);gap:3px;}
+.dim-field{display:flex;flex-direction:column;flex:1;padding:7px 14px;border-right:1px solid var(--border);gap:2px;}
 .dim-field:last-child{border-right:none;}
 .dim-label{display:flex;align-items:center;gap:5px;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--ink4);}
 .dim-input{background:transparent;border:none;outline:none;font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:500;color:var(--ink);width:100%;padding:0;caret-color:var(--orange);}
 .dim-input::placeholder{color:var(--ink4);font-weight:400;}
 .dim-input:focus{color:var(--orange);}
 
-/* Espaço restante esquerda */
-.left-spacer{flex:1;background:var(--surf2);border-top:1px solid var(--border);}
-
 /* RIGHT */
 .right{display:flex;flex-direction:column;min-height:0;overflow:hidden;background:var(--dark2);}
 
-.rtop{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--dark);border-bottom:1px solid rgba(255,255,255,.06);flex-shrink:0;}
+.rtop{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--dark);border-bottom:1px solid rgba(255,255,255,.06);flex-shrink:0;flex-wrap:wrap;}
 .rtop-label{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.3);}
 .fmt-group{display:flex;border:1.5px solid rgba(255,255,255,.1);border-radius:7px;overflow:hidden;}
-.fmt-btn{padding:5px 12px;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;background:transparent;color:rgba(255,255,255,.3);border:none;cursor:pointer;transition:all .13s;}
+.fmt-btn{padding:5px 10px;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;background:transparent;color:rgba(255,255,255,.3);border:none;cursor:pointer;transition:all .13s;}
 .fmt-btn+.fmt-btn{border-left:1px solid rgba(255,255,255,.08);}
 .fmt-btn.active{background:var(--orange);color:#fff;}
 .fmt-btn:not(.active):hover{background:rgba(255,255,255,.07);color:rgba(255,255,255,.7);}
+.pager-group{display:none;align-items:center;border:1px solid rgba(255,255,255,.12);border-radius:6px;overflow:hidden;}
+.pager-btn{background:transparent;color:rgba(255,255,255,.65);border:none;padding:4px 8px;font-family:'IBM Plex Mono',monospace;font-size:11px;cursor:pointer;}
+.pager-btn:hover{background:rgba(255,255,255,.1);color:#fff;}
+.pager-lbl{font-family:'IBM Plex Mono',monospace;font-size:10px;color:rgba(255,255,255,.75);padding:0 6px;cursor:pointer;}
 .rmeta{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:10px;color:rgba(255,255,255,.2);}
 
 .preview{flex:1;overflow:auto;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:20px 16px;gap:14px;}
@@ -111,7 +246,7 @@ input[type=file]{display:none;}
 .empty-title{font-size:17px;font-weight:600;font-style:italic;color:rgba(255,255,255,.18);font-family:'Figtree',sans-serif;}
 .empty-sub{font-size:12px;color:rgba(255,255,255,.14);line-height:1.6;max-width:190px;}
 
-.pdf-card{width:100%;background:#fff;border-radius:var(--r2);overflow:hidden;box-shadow:0 24px 48px rgba(0,0,0,.4),0 6px 12px rgba(0,0,0,.2);animation:sup .28s cubic-bezier(.2,.8,.2,1);}
+.pdf-card{width:100%;max-width:270px;margin:0 auto;background:#fff;border-radius:var(--r2);overflow:hidden;box-shadow:0 24px 48px rgba(0,0,0,.4),0 6px 12px rgba(0,0,0,.2);animation:sup .28s cubic-bezier(.2,.8,.2,1);}
 @keyframes sup{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 .pdf-card embed{display:block;width:100%;height:340px;}
 .pdf-noembed{display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:40px 20px;background:#fff;text-align:center;height:340px;}
@@ -134,7 +269,7 @@ input[type=file]{display:none;}
 .btn-dl:active:not(:disabled){transform:translateY(0);}
 .btn-dl:disabled{opacity:.3;cursor:not-allowed;}
 
-.statusbar{padding:6px 16px;flex-shrink:0;background:var(--dark2);border-top:1px solid rgba(255,255,255,.04);font-family:'IBM Plex Mono',monospace;font-size:11px;color:rgba(255,255,255,.22);display:flex;align-items:center;min-height:26px;}
+.statusbar{padding:6px 16px;flex-shrink:0;background:var(--dark2);border-top:1px solid rgba(255,255,255,.04);font-family:'IBM Plex Mono',monospace;font-size:11px;color:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:26px;}
 .statusbar.ok{color:#4ade80;}
 .statusbar.err{color:#f87171;}
 
@@ -154,7 +289,6 @@ input[type=file]{display:none;}
   .workspace{grid-template-columns:1fr;grid-template-rows:auto 1px 1fr;}
   .vdivider{height:1px;width:100%;}
   body{overflow:auto;}
-  .editor-section{max-height:40vh;}
 }
 </style>
 </head>
@@ -184,37 +318,221 @@ input[type=file]{display:none;}
 
     <div class="samples">
       <span class="slabel">Exemplos:</span>
-      <button class="chip active" data-s="etiqueta" onclick="loadSample(this)">🏷 Etiqueta</button>
+      <button class="chip" data-s="etiqueta" onclick="loadSample(this)">🏷 Etiqueta</button>
       <button class="chip" data-s="code128"  onclick="loadSample(this)">▮ Code 128</button>
       <button class="chip" data-s="code39"   onclick="loadSample(this)">▮ Code 39</button>
       <button class="chip" data-s="qr"       onclick="loadSample(this)">▣ QR Code</button>
       <button class="chip" data-s="completo" onclick="loadSample(this)">★ Completo</button>
       <button class="chip" data-s="multi"    onclick="loadSample(this)">⊞ Multi</button>
+      <button class="chip" data-s="shopee"   onclick="window.UpsellerUI.loadShopeeDemoData(this)" title="Carregar exemplo de etiquetas Z64 Shopee + Lista Excel UpSeller">🛒 Demo Shopee + Excel</button>
     </div>
 
-    <!-- Editor — max 50vh -->
-    <div class="editor-section">
-      <div class="editor-label">
-        <span class="bar-label">● Código ZPL</span>
-        <span class="ccount" id="ccount">0 chars</span>
-      </div>
-      <div class="editor-wrap">
-        <div class="gutter"><div class="gutter-inner" id="gutter"></div></div>
-        <textarea id="editor" spellcheck="false" autocomplete="off"
-          placeholder="Cole seu código ZPL aqui…&#10;^XA&#10;^FO50,50^FDHello World^FS&#10;^XZ"></textarea>
+    <!-- Abas da Coluna Esquerda -->
+    <div class="left-tabs">
+      <button class="ltab-btn active" id="tab-btn-editor" onclick="window.UpsellerUI.switchLeftTab('editor')">
+        ● Código ZPL
+      </button>
+      <button class="ltab-btn" id="tab-btn-upseller" onclick="window.UpsellerUI.switchLeftTab('upseller')">
+        ● Conferência / SKU (UpSeller)
+        <span class="ltab-badge" id="upseller-count-badge">0</span>
+      </button>
+      <button class="ltab-btn" id="tab-btn-logs" onclick="window.UpsellerUI.switchLeftTab('logs')">
+        ● Logs / Diagnóstico
+        <span class="ltab-badge" id="log-count-badge">0</span>
+      </button>
+      <span class="ccount" id="ccount">0 chars</span>
+    </div>
+
+    <!-- ABA 1: Editor ZPL -->
+    <div id="pane-editor">
+      <div class="editor-section">
+        <div class="editor-wrap">
+          <div class="gutter"><div class="gutter-inner" id="gutter"></div></div>
+          <textarea id="editor" spellcheck="false" autocomplete="off"
+            placeholder="Cole seu código ZPL aqui…&#10;^XA&#10;^FO50,50^FDHello World^FS&#10;^XZ"></textarea>
+        </div>
       </div>
     </div>
 
-    <!-- Botão de arquivo — abaixo do editor -->
+    <!-- ABA 2: Conferência / SKU (UpSeller) -->
+    <div id="pane-upseller">
+      <div class="upseller-cfg">
+        <div class="cfg-row">
+          <div class="cfg-group">
+            <label title="Ativar/desativar injeção da SKU no rodapé das etiquetas">
+              <input type="checkbox" id="cfg-enabled" checked onchange="window.UpsellerUI.rebuildInjectedZplInEditor(false)">
+              <strong>Imprimir SKU no rodapé</strong>
+            </label>
+          </div>
+          <div class="cfg-group">
+            <span>Campo:</span>
+            <select class="cfg-select" id="cfg-sku-pref" onchange="window.UpsellerUI.rebuildInjectedZplInEditor(false)">
+              <option value="sku" selected>SKU Reference No. (reserva: SKU Pai)</option>
+              <option value="parent">Apenas Parent SKU</option>
+              <option value="both">Ambos (SKU + SKU Pai)</option>
+            </select>
+          </div>
+          <div class="cfg-group">
+            <label title="Exibe numeração da peça (1., 2., 3...) e quantidade (*1, *2...) na frente de cada item, mesmo quando houver apenas 1 peça">
+              <input type="checkbox" id="cfg-show-qty" checked onchange="window.UpsellerUI.rebuildInjectedZplInEditor(false)">
+              Mostrar quantidade na frente (<code>*1</code>, <code>*2</code>...) mesmo com 1 peça
+            </label>
+          </div>
+        </div>
+
+        <div class="cfg-row">
+          <div class="cfg-group">
+            <span>Fonte SKU:</span>
+            <select class="cfg-select" id="cfg-font-size" onchange="window.UpsellerUI.rebuildInjectedZplInEditor(false)">
+              <option value="14">Muito pequena (14 dots)</option>
+              <option value="16" selected>Pequena (16 dots · Padrão)</option>
+              <option value="18">Compacta (18 dots)</option>
+              <option value="20">Média (20 dots)</option>
+              <option value="24">Média-Grande (24 dots)</option>
+              <option value="28">Grande (28 dots)</option>
+            </select>
+          </div>
+          <div class="cfg-group" title="Reduz proporcionalmente a etiqueta Shopee dentro da folha 100x150 mm para abrir espaço branco no rodapé para as SKUs (padrão: 88%)">
+            <span>Tamanho da etiqueta (%):</span>
+            <input type="number" class="cfg-num" id="cfg-scale-pct" value="88" min="65" max="100" step="2" onchange="window.UpsellerUI.rebuildInjectedZplInEditor(false)">
+          </div>
+          <div class="cfg-group">
+            <label title="Simula negrito imprimindo 2x com 1 dot de deslocamento">
+              <input type="checkbox" id="cfg-bold" onchange="window.UpsellerUI.rebuildInjectedZplInEditor(false)">
+              Negrito
+            </label>
+          </div>
+          <div class="cfg-group">
+            <span>Alinhar:</span>
+            <select class="cfg-select" id="cfg-align" onchange="window.UpsellerUI.rebuildInjectedZplInEditor(false)">
+              <option value="L" selected>Esquerda</option>
+              <option value="C">Centro</option>
+              <option value="R">Direita</option>
+            </select>
+          </div>
+          <div class="cfg-group" title="Margem inferior de segurança acima do fim físico da página (padrão: 20 dots)">
+            <span>Margem inf. (dots):</span>
+            <input type="number" class="cfg-num" id="cfg-bottom-margin" value="20" min="8" max="120" step="2" onchange="window.UpsellerUI.rebuildInjectedZplInEditor(false)">
+          </div>
+          <div class="cfg-group" title="Desloca o bitmap para cima para liberar espaço extra no rodapé">
+            <span>Subir etiqueta (dots):</span>
+            <input type="number" class="cfg-num" id="cfg-shift-up" value="0" min="0" max="100" step="2" onchange="window.UpsellerUI.rebuildInjectedZplInEditor(false)">
+          </div>
+        </div>
+
+        <div class="cfg-row">
+          <div class="cfg-group">
+            <label title="Reordena os blocos inteiros de etiqueta em ordem alfabética da SKU">
+              <input type="checkbox" id="cfg-sort-sku" onchange="window.UpsellerUI.rebuildInjectedZplInEditor(false)">
+              Ordenar saída por SKU
+            </label>
+          </div>
+          <div class="cfg-group">
+            <label title="Gera uma segunda etiqueta 4x6 logo após a original quando o pedido for resumido (+N itens)">
+              <input type="checkbox" id="cfg-extra-label" onchange="window.UpsellerUI.rebuildInjectedZplInEditor(false)">
+              Imprimir lista completa em etiqueta extra
+            </label>
+          </div>
+          <details class="cfg-adv" style="margin-left:auto;">
+            <summary>Opções avançadas</summary>
+            <div style="display:flex;flex-direction:column;gap:5px;margin-top:6px;">
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span>Formato gráfico no ZPL:</span>
+                <select class="cfg-select" id="cfg-zpl-format" onchange="window.UpsellerUI.rebuildInjectedZplInEditor(false)">
+                  <option value="z64" selected>Manter ~DG :Z64: original (Zebra)</option>
+                  <option value="gfa-hex">Converter para ^GFA Hex dentro de ^XA</option>
+                </select>
+              </div>
+              <label style="display:inline-flex;align-items:center;gap:5px;color:var(--red);">
+                <input type="checkbox" id="cfg-allow-extend" onchange="window.UpsellerUI.rebuildInjectedZplInEditor(false)">
+                Aumentar página (^LL) se faltar espaço (⚠ pode cortar na impressora térmica)
+              </label>
+            </div>
+          </details>
+        </div>
+      </div>
+
+      <!-- Barra de Ações Rápidas e Etiqueta de Teste -->
+      <div class="upseller-actions">
+        <button class="btn-sm primary" onclick="window.UpsellerUI.generateSingleTestLabel()">
+          🖨 Gerar etiqueta de teste
+        </button>
+        <button class="btn-sm" onclick="window.UpsellerUI.toggleReverseOrders()">
+          ⇅ Inverter ordem dos pedidos
+        </button>
+        <button class="btn-sm" onclick="window.UpsellerUI.downloadEditedZpl()">
+          ⬇ Baixar ZPL editado (.zpl)
+        </button>
+        <div class="print-tip" id="test-print-tip">
+          Imprima em 100% (tamanho real), sem ajustar à página, margens nenhuma, papel 100x150 mm
+        </div>
+      </div>
+
+      <!-- Mapeamento de colunas do Excel -->
+      <div class="colmap-bar" id="excel-colmap-wrap"></div>
+
+      <!-- Alertas -->
+      <div class="upseller-alerts" id="upseller-alerts"></div>
+
+      <!-- Tabela de Conferência -->
+      <div class="table-scroll">
+        <table class="u-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Etiqueta</th>
+              <th>Code 128 / Lidos</th>
+              <th>Pedido (Excel)</th>
+              <th>Rodapé (Somente SKU)</th>
+              <th>Itens do Pedido</th>
+              <th>Status / Espaço</th>
+            </tr>
+          </thead>
+          <tbody id="upseller-tbody">
+            <tr>
+              <td colspan="7" style="text-align:center;padding:24px;color:var(--ink4);">
+                Carregue um arquivo ZPL (.zpl, .txt ou .zip) e a Lista de Empacotamento (.xlsx/.csv) para conferir as etiquetas.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ABA 3: Console de Logs / Diagnóstico -->
+    <div id="pane-logs">
+      <div class="logs-toolbar">
+        <span class="logs-title">● Console de Diagnóstico em Tempo Real (ZPL · :Z64: · Code 128 · Excel · API · PDF)</span>
+        <button class="btn-log" onclick="window.DiagLogger.copyLogs()">📋 Copiar Logs</button>
+        <button class="btn-log" onclick="window.DiagLogger.downloadLogs()">⬇ Baixar Logs (.txt)</button>
+        <button class="btn-log" onclick="window.DiagLogger.clearLogs()">🗑 Limpar</button>
+      </div>
+      <div class="log-list" id="diag-log-list">
+        <div class="log-empty">Inicializando logs de diagnóstico…</div>
+      </div>
+    </div>
+
+    <!-- Barra de arquivos — abaixo do editor/tabela -->
     <div class="file-bar">
       <label class="btn-file" for="file-input">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
           <path d="M2 3h5l1.5 2H14v9H2z"/>
         </svg>
-        Abrir arquivo
+        Abrir arquivo ZPL
         <input type="file" id="file-input" accept=".zpl,.txt,.prn,.imp,.zip">
       </label>
-      <span class="file-hint">.zpl · .txt · .zip</span>
+
+      <label class="btn-file excel" for="excel-input">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+          <rect x="2" y="2" width="12" height="12" rx="1.5"/>
+          <line x1="2" y1="6" x2="14" y2="6"/>
+          <line x1="6" y1="6" x2="6" y2="14"/>
+        </svg>
+        Abrir lista de empacotamento
+        <input type="file" id="excel-input" accept=".xlsx,.xls,.csv,.tsv">
+      </label>
+      <span class="file-hint" id="excel-file-status">.zpl/.zip + .xlsx/.csv</span>
+
       <div class="sel-wrap">
         <select id="dpi">
           <option value="152">152 dpi</option>
@@ -223,12 +541,12 @@ input[type=file]{display:none;}
           <option value="600">600 dpi</option>
         </select>
       </div>
-      <button class="btn-clear" onclick="doClear()" title="Limpar editor">
+      <button class="btn-clear" onclick="doClear()" title="Limpar editor e dados">
         <svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 1l12 12M13 1L1 13"/></svg>
       </button>
     </div>
 
-    <!-- Largura · Altura -->
+    <!-- Largura · Altura (fixo 4x6 pol por padrão para 10x15 cm) -->
     <div class="dims-bar">
       <div class="dim-field">
         <span class="dim-label">
@@ -246,9 +564,6 @@ input[type=file]{display:none;}
       </div>
     </div>
 
-    <!-- Espaço restante -->
-    <div class="left-spacer"></div>
-
   </div>
 
   <div class="vdivider"></div>
@@ -262,12 +577,18 @@ input[type=file]{display:none;}
         <button class="fmt-btn active" data-f="pdf" onclick="setFmt(this)">PDF</button>
         <button class="fmt-btn" data-f="png" onclick="setFmt(this)">PNG</button>
       </div>
-      <div class="rsel" style="margin-left:8px;">
-        <select id="renderer">
+      <div class="rsel">
+        <select id="renderer" title="Modo de renderização">
           <option value="offline" selected>offline</option>
+          <option value="local">local (:Z64: direto)</option>
           <option value="auto">auto</option>
           <option value="labelary">labelary</option>
         </select>
+      </div>
+      <div class="pager-group" id="preview-pager">
+        <button class="pager-btn" onclick="window.UpsellerUI.stepPreviewPage(-1)" title="Etiqueta anterior">◀</button>
+        <span class="pager-lbl" id="preview-pager-label" onclick="window.UpsellerUI.stepPreviewPage(0)" title="Clique para mostrar todas as etiquetas">Todas</span>
+        <button class="pager-btn" onclick="window.UpsellerUI.stepPreviewPage(1)" title="Próxima etiqueta">▶</button>
       </div>
       <span class="rmeta" id="rmeta">—</span>
     </div>
@@ -280,7 +601,7 @@ input[type=file]{display:none;}
       </div>
     </div>
 
-    <!-- Converter + Download empilhados -->
+    <!-- Converter + Download empilhados (Baixar PDF sempre visível abaixo do Converter) -->
     <div class="action-section">
       <button class="btn-convert" id="conv-btn" onclick="doConvert()">
         <div class="spinner" id="spin"></div>
@@ -295,7 +616,10 @@ input[type=file]{display:none;}
       </button>
     </div>
 
-    <div class="statusbar" id="sbar">Aguardando…</div>
+    <div class="statusbar" id="sbar">
+      <span id="sbar-txt">Aguardando…</span>
+      <button class="btn-log" style="padding:2px 7px;font-size:10px;" onclick="window.UpsellerUI.switchLeftTab('logs')">📋 Ver Logs</button>
+    </div>
 
   </div>
 
@@ -303,10 +627,16 @@ input[type=file]{display:none;}
 
 <div class="toast-zone" id="toasts"></div>
 
+<script src="js/diag-logger.js"></script>
+<script src="js/zpl-bitmap.js"></script>
+<script src="js/barcode-reader.js"></script>
+<script src="js/excel-parser.js"></script>
+<script src="js/matcher-injector.js"></script>
+<script src="js/shopee-sample.js"></script>
+<script src="js/upseller-ui.js"></script>
+
 <script>
-const API=(location.hostname==='localhost'||location.hostname==='127.0.0.1')
-  ?'http://localhost:5000'
-  :`${location.protocol}//${location.hostname}:5000`;
+const API = '';
 
 let blob=null,ext='pdf',fmt='pdf';
 
@@ -426,6 +756,9 @@ function loadSample(btn){
   document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
   btn.classList.add('active');
   ed.value=S[btn.dataset.s]||'';syncGutter();
+  if(window.UpsellerUI){
+    window.UpsellerUI.analyzeZplSource(ed.value);
+  }
 }
 
 function doClear(){
@@ -436,6 +769,15 @@ function doClear(){
   blob=null;
   document.getElementById('dl-btn').disabled=true;
   document.getElementById('dl-label').textContent='Baixar PDF';
+  const excelStatus=document.getElementById('excel-file-status');
+  if(excelStatus)excelStatus.textContent='.zpl/.zip + .xlsx/.csv';
+  if(window.UpsellerUI){
+    window.UpsellerUI.AppState.orders=[];
+    window.UpsellerUI.AppState.excelHeaders=[];
+    window.UpsellerUI.AppState.excelRawRows=[];
+    window.UpsellerUI.AppState.excelWarnings=[];
+    window.UpsellerUI.analyzeZplSource('');
+  }
 }
 
 function setFmt(btn){
@@ -448,85 +790,314 @@ document.getElementById('file-input').addEventListener('change',async function()
   this.value='';
   if(f.name.toLowerCase().endsWith('.zip')){
     toast('Lendo ZIP…','info');
+    if(window.DiagLogger)window.DiagLogger.log('info','FILE',`Abrindo arquivo ZIP: "${f.name}" (${f.size} bytes)`);
     try{
       const zip=await JSZip.loadAsync(f);
       const exts=['.zpl','.txt','.prn','.imp'];
-      let found=null,foundName='';
+      const entries=[];
       zip.forEach((path,entry)=>{
-        if(!found&&!entry.dir){
-          if(exts.some(x=>path.toLowerCase().endsWith(x))){found=entry;foundName=path;}
+        if(!entry.dir&&exts.some(x=>path.toLowerCase().endsWith(x))){
+          entries.push({path,entry});
         }
       });
-      if(!found){toast('Nenhum .zpl/.txt encontrado no ZIP','error');return;}
-      ed.value=await found.async('string');
+      if(!entries.length){
+        if(window.DiagLogger)window.DiagLogger.log('error','FILE','Nenhum arquivo .zpl/.txt encontrado dentro do ZIP.');
+        toast('Nenhum .zpl/.txt encontrado no ZIP','error');
+        return;
+      }
+      entries.sort((a,b)=>a.path.localeCompare(b.path));
+      const contents=await Promise.all(entries.map(e=>e.entry.async('string')));
+      ed.value=contents.join('\n\n');
       syncGutter();
       document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
-      toast('ZIP extraído: '+foundName,'ok');
-    }catch(err){toast('Erro no ZIP: '+err.message,'error');}
+      if(window.DiagLogger)window.DiagLogger.log('ok','FILE',`ZIP extraído: ${entries.map(e=>e.path).join(', ')} (${ed.value.length} chars)`);
+      toast('ZIP extraído: '+entries.map(e=>e.path).join(', '),'ok');
+      if(window.UpsellerUI){
+        await window.UpsellerUI.analyzeZplSource(ed.value);
+      }
+    }catch(err){
+      if(window.DiagLogger)window.DiagLogger.log('error','FILE',`Erro ao ler ZIP: ${err.message}`,{stack:err.stack});
+      toast('Erro no ZIP: '+err.message,'error');
+    }
   }else{
+    if(window.DiagLogger)window.DiagLogger.log('info','FILE',`Abrindo arquivo ZPL: "${f.name}" (${f.size} bytes)`);
     const r=new FileReader();
-    r.onload=e=>{ed.value=e.target.result;syncGutter();toast('Carregado: '+f.name,'info');};
+    r.onload=async e=>{
+      ed.value=e.target.result;
+      syncGutter();
+      toast('Carregado: '+f.name,'info');
+      if(window.UpsellerUI){
+        await window.UpsellerUI.analyzeZplSource(ed.value);
+      }
+    };
     r.readAsText(f,'UTF-8');
   }
 });
 
+let lastApiStatusLogged = null;
+let isApiOnline = false;
 async function checkApi(){
   const p=document.getElementById('api-pill'),t=document.getElementById('api-txt');
   try{
-    const r=await fetch(`${API}/api/health`,{signal:AbortSignal.timeout(4000)});
-    if(r.ok){p.className='api-pill online';t.textContent='API online · localhost:5000';return;}
-    throw 0;
-  }catch{p.className='api-pill offline';t.textContent='API offline — inicie o ZPL2PDF';}
+    const r=await fetch(`${API}/api/health`,{signal:AbortSignal.timeout(3500)});
+    const ctype=(r.headers.get('content-type')||'').toLowerCase();
+    if(r.ok && ctype.includes('json')){
+      const data=await r.json().catch(()=>({}));
+      isApiOnline=true;
+      p.className='api-pill online';
+      t.textContent=`API online · v${data.version||'3.1.1'}`;
+      if(lastApiStatusLogged!=='online'){
+        lastApiStatusLogged='online';
+        if(window.DiagLogger)window.DiagLogger.log('ok','API',`GET /api/health -> online (v${data.version||'3.1.1'})`,data);
+      }
+      return;
+    }
+    throw new Error(`HTTP ${r.status}`);
+  }catch(err){
+    isApiOnline=false;
+    p.className='api-pill cloud';
+    t.textContent='Modo Nuvem / Local (:Z64: + PDF no Navegador)';
+    if(lastApiStatusLogged!=='offline'){
+      lastApiStatusLogged='offline';
+      if(window.DiagLogger)window.DiagLogger.log('info','API',`Modo Nuvem/Estático ativo (sem container Docker em /api/health). Etiquetas Shopee (:Z64:) + Excel são processadas e convertidas em PDF 100% no navegador.`);
+    }
+  }
 }
 
-async function doConvert(){
-  const zpl=ed.value.trim();
+async function doConvert(overrideZpl, customMetaLabel, singleItemIdx){
+  const dlog = (window.DiagLogger && window.DiagLogger.log) ? window.DiagLogger.log : ()=>{};
+  const zpl=(typeof overrideZpl==='string'&&overrideZpl.trim())?overrideZpl.trim():ed.value.trim();
   if(!zpl){toast('Cole o ZPL antes de converter.','error');return;}
+
   const cbtn=document.getElementById('conv-btn'),sp=document.getElementById('spin');
   const icon=document.getElementById('conv-icon'),lbl=document.getElementById('conv-label');
   cbtn.disabled=true;sp.classList.add('on');icon.style.display='none';lbl.textContent='Convertendo…';
   setStatus('Convertendo…','');
+
   const dpi=parseInt(document.getElementById('dpi').value);
   const renderer=document.getElementById('renderer').value;
-  const dimW=parseFloat(document.getElementById('dim-width').value)||0;
-  const dimH=parseFloat(document.getElementById('dim-height').value)||0;
+  const dimW=parseFloat(document.getElementById('dim-width').value)||4;
+  const dimH=parseFloat(document.getElementById('dim-height').value)||6;
+
+  // Verifica se temos etiquetas com gráfico (:Z64: / ~DG / ^GF) já decodificadas no navegador
+  const hasGraphicLabels = Boolean(
+    window.UpsellerUI &&
+    window.UpsellerUI.AppState.labels &&
+    window.UpsellerUI.AppState.labels.some(l => l.hasGraphic && l.bitmap)
+  );
+  const localCanvases = (hasGraphicLabels && window.UpsellerUI && window.UpsellerUI.buildCanvasesForConvert)
+    ? window.UpsellerUI.buildCanvasesForConvert(typeof singleItemIdx === 'number' ? singleItemIdx : null)
+    : [];
+
+  dlog('info','CONVERT',`Iniciando conversão (${fmt.toUpperCase()}, ${dpi} dpi, renderer=${renderer}, ${dimW}x${dimH} pol)`,{
+    zplChars: zpl.length,
+    hasGraphicLabels,
+    localCanvasesGerados: localCanvases.length,
+    customMetaLabel: customMetaLabel || 'Todas'
+  });
+
   try{
     const t0=Date.now();
-    const body={zpl,format:fmt,dpi,renderer};
+
+    // 1. Se o usuário selecionou o renderizador "local" OU está em Hospedagem na Nuvem (!isApiOnline) com etiqueta gráfica (:Z64:)
+    if(renderer === 'local' || (!isApiOnline && localCanvases.length > 0)){
+      const canvasesToUse = localCanvases.length > 0
+        ? localCanvases
+        : (window.UpsellerUI ? window.UpsellerUI.buildCanvasesForConvert(typeof singleItemIdx === 'number' ? singleItemIdx : null) : []);
+
+      if(!canvasesToUse.length) throw new Error('Nenhuma etiqueta disponível para renderização local.');
+
+      const pages = canvasesToUse.length;
+      if(fmt === 'pdf'){
+        blob = window.LocalLabelRenderer.generatePdfBlobFromCanvases(canvasesToUse, dimW, dimH);
+        ext = 'pdf';
+        showPdf(blob, canvasesToUse);
+        dlog('ok','CONVERT',`PDF gerado direto no navegador com sucesso (${pages} pág, ${blob.size} bytes).`);
+      }else{
+        const imgs = canvasesToUse.map(c => c.toDataURL('image/png').split(',')[1]);
+        if(imgs.length === 1){
+          const bytes = Uint8Array.from(atob(imgs[0]), c => c.charCodeAt(0));
+          blob = new Blob([bytes], {type:'image/png'}); ext = 'png';
+        }else{
+          const zip = new JSZip();
+          imgs.forEach((b64, i) => zip.file(`etiqueta_${i+1}.png`, b64, {base64:true}));
+          blob = await zip.generateAsync({type:'blob'}); ext = 'zip';
+        }
+        showPng(imgs);
+        dlog('ok','CONVERT',`PNG(s) gerado(s) direto no navegador com sucesso (${pages} pág).`);
+      }
+
+      const ms = Date.now() - t0;
+      const metaPrefix = customMetaLabel ? `${customMetaLabel} · ` : '';
+      document.getElementById('rmeta').textContent = `${metaPrefix}${pages} pág · ${ms}ms`;
+      setStatus(`✓ ${metaPrefix}${pages} página(s) em ${ms}ms (navegador)`, 'ok');
+      toast('Convertido com sucesso!','ok');
+      document.getElementById('dl-btn').disabled = false;
+      document.getElementById('dl-label').textContent = `Baixar ${ext.toUpperCase()} · ${pages} pág.`;
+      return;
+    }
+
+    // 2. Conversão via API (/api/convert) com proteção automática contra página em branco em ~DG/:Z64:
+    let zplToSend = zpl;
+    if(renderer === 'offline' && hasGraphicLabels && window.UpsellerUI && window.UpsellerUI.buildApiCompatibleZplForConvert){
+      const gfaZpl = window.UpsellerUI.buildApiCompatibleZplForConvert(typeof singleItemIdx === 'number' ? singleItemIdx : null);
+      if(gfaZpl){
+        zplToSend = gfaZpl;
+        dlog('info','CONVERT','Gráfico ~DG (:Z64:) convertido para ^GFA Hex dentro de ^XA...^XZ (com SKU gravada no bitmap) para compatibilidade com o motor offline da API.',{
+          originalChars: zpl.length,
+          gfaHexChars: zplToSend.length
+        });
+      }
+    }
+
+    const body={zpl: zplToSend, format:fmt, dpi, renderer};
     if(dimW>0){body.width=dimW;body.unit='in';}
     if(dimH>0){body.height=dimH;body.unit='in';}
-    const resp=await fetch(`${API}/api/convert`,{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(body),
-      signal:AbortSignal.timeout(30000)
-    });
-    const data=await resp.json();
-    if(!resp.ok||!data.success)throw new Error(data.message||data.error||'Erro na API');
-    const ms=Date.now()-t0,pages=data.pages||1;
-    if(fmt==='pdf'){
-      const bytes=Uint8Array.from(atob(data.pdf),c=>c.charCodeAt(0));
-      blob=new Blob([bytes],{type:'application/pdf'});ext='pdf';showPdf(blob);
-    }else{
-      const imgs=data.images||(data.image?[data.image]:[]);
-      blob=null;ext='png';showPng(imgs);
+
+    let apiSuccess = false;
+    let data = null;
+    let apiErrorMsg = '';
+
+    try {
+      const resp=await fetch(`${API}/api/convert`,{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(body),
+        signal:AbortSignal.timeout(30000)
+      });
+      data = await resp.json().catch(()=>({}));
+      dlog(resp.ok && data.success ? 'ok' : 'warn', 'API', `Resposta POST /api/convert: HTTP ${resp.status}`, {
+        success: data.success,
+        pages: data.pages,
+        message: data.message || null,
+        error: data.error || null,
+        warnings: data.warnings || null,
+        pdfBase64Len: data.pdf ? data.pdf.length : 0,
+        imagesCount: data.images ? data.images.length : (data.image ? 1 : 0)
+      });
+      if(resp.ok && data.success){
+        apiSuccess = true;
+      } else {
+        apiErrorMsg = data.message || data.error || `HTTP ${resp.status}`;
+      }
+    } catch (fetchErr) {
+      apiErrorMsg = fetchErr.message || 'Falha de conexão com /api/convert';
+      dlog('warn', 'API', `Falha ao chamar POST /api/convert: ${apiErrorMsg}`);
     }
-    document.getElementById('rmeta').textContent=`${pages} pág · ${ms}ms`;
-    setStatus(`✓ ${pages} página(s) em ${ms}ms`,'ok');
-    toast('Convertido com sucesso!','ok');
-    document.getElementById('dl-btn').disabled=false;
-    document.getElementById('dl-label').textContent=`Baixar ${fmt.toUpperCase()} · ${pages} pág.`;
+
+    const ms=Date.now()-t0;
+
+    if(apiSuccess && data){
+      const pages=data.pages||1;
+      if(fmt==='pdf'){
+        const bytes=Uint8Array.from(atob(data.pdf||''),c=>c.charCodeAt(0));
+        const bytesPerPage = Math.round(bytes.length / Math.max(1, pages));
+        dlog('info','PDF',`PDF recebido da API: ${bytes.length} bytes (${bytesPerPage} bytes/página).`);
+
+        // Se a etiqueta tem bitmap gráfico (:Z64: Shopee com dezenas de milhares de pixels pretos),
+        // um PDF com menos de 10 KB por página significa que o motor da API ignorou o gráfico e gerou página branca!
+        if(hasGraphicLabels && localCanvases.length > 0 && bytesPerPage < 10000){
+          dlog('warn','PDF',`ALERTA DE PÁGINA EM BRANCO: O PDF retornado pela API tem apenas ${bytesPerPage} bytes/página (o motor offline não renderizou o bitmap gráfico). Gerando PDF de alta definição (100x150 mm) diretamente a partir do bitmap decodificado + SKU!`);
+          blob = window.LocalLabelRenderer.generatePdfBlobFromCanvases(localCanvases, dimW, dimH);
+          ext = 'pdf';
+          showPdf(blob, localCanvases);
+        }else{
+          blob=new Blob([bytes],{type:'application/pdf'});
+          ext='pdf';
+          showPdf(blob, localCanvases);
+        }
+      }else{
+        let imgs=data.images||(data.image?[data.image]:[]);
+        const firstImgLen = imgs[0] ? imgs[0].length : 0;
+        if(hasGraphicLabels && localCanvases.length > 0 && firstImgLen < 4000){
+          dlog('warn','PDF',`ALERTA DE IMAGEM EM BRANCO: PNG retornado pela API tem apenas ${firstImgLen} chars base64. Usando renderização direta do bitmap decodificado + SKU!`);
+          imgs = localCanvases.map(c => c.toDataURL('image/png').split(',')[1]);
+        }
+        if(imgs.length===1){
+          const bytes=Uint8Array.from(atob(imgs[0]),c=>c.charCodeAt(0));
+          blob=new Blob([bytes],{type:'image/png'});ext='png';
+        }else if(imgs.length>1){
+          const zip=new JSZip();
+          imgs.forEach((b64,i)=>zip.file(`etiqueta_${i+1}.png`,b64,{base64:true}));
+          blob=await zip.generateAsync({type:'blob'});ext='zip';
+        }else{
+          blob=null;ext='png';
+        }
+        showPng(imgs);
+      }
+
+      const finalPages = (hasGraphicLabels && localCanvases.length > 0) ? localCanvases.length : pages;
+      const metaPrefix=customMetaLabel?`${customMetaLabel} · `:'';
+      document.getElementById('rmeta').textContent=`${metaPrefix}${finalPages} pág · ${ms}ms`;
+      setStatus(`✓ ${metaPrefix}${finalPages} página(s) em ${ms}ms`,'ok');
+      toast('Convertido com sucesso!','ok');
+      document.getElementById('dl-btn').disabled=false;
+      document.getElementById('dl-label').textContent=`Baixar ${ext.toUpperCase()} · ${finalPages} pág.`;
+      return;
+    }
+
+    // 3. Se a API retornou erro ou está offline, mas temos os bitmaps decodificados localmente, gera o PDF/PNG sem falhar!
+    if(localCanvases.length > 0 && window.LocalLabelRenderer){
+      dlog('warn','CONVERT',`API indisponível ou recusou o payload (${apiErrorMsg}). Gerando ${fmt.toUpperCase()} localmente a partir do bitmap :Z64: decodificado + SKU!`);
+      const pages = localCanvases.length;
+      if(fmt === 'pdf'){
+        blob = window.LocalLabelRenderer.generatePdfBlobFromCanvases(localCanvases, dimW, dimH);
+        ext = 'pdf';
+        showPdf(blob, localCanvases);
+      }else{
+        const imgs = localCanvases.map(c => c.toDataURL('image/png').split(',')[1]);
+        if(imgs.length === 1){
+          const bytes = Uint8Array.from(atob(imgs[0]), c => c.charCodeAt(0));
+          blob = new Blob([bytes], {type:'image/png'}); ext = 'png';
+        }else{
+          const zip = new JSZip();
+          imgs.forEach((b64, i) => zip.file(`etiqueta_${i+1}.png`, b64, {base64:true}));
+          blob = await zip.generateAsync({type:'blob'}); ext = 'zip';
+        }
+        showPng(imgs);
+      }
+      const metaPrefix = customMetaLabel ? `${customMetaLabel} · ` : '';
+      document.getElementById('rmeta').textContent = `${metaPrefix}${pages} pág · ${ms}ms`;
+      setStatus(`✓ ${metaPrefix}${pages} página(s) em ${ms}ms (fallback local)`, 'ok');
+      toast('Convertido com sucesso (renderizador local :Z64:)!','ok');
+      document.getElementById('dl-btn').disabled = false;
+      document.getElementById('dl-label').textContent = `Baixar ${ext.toUpperCase()} · ${pages} pág.`;
+      return;
+    }
+
+    throw new Error(apiErrorMsg || 'Erro na conversão');
   }catch(err){
     const msg=err.message.includes('fetch')||err.message.includes('Failed')
-      ?'API inacessível. Verifique se o ZPL2PDF está rodando.':err.message;
+      ?'API inacessível. Verifique se o container zpl2pdf-api está rodando ou use uma etiqueta :Z64:.':err.message;
+    dlog('error','CONVERT',`Falha na conversão: ${msg}`,{stack:err.stack});
     setStatus('✗ '+msg,'err');toast(msg,'error');
-    document.getElementById('preview').innerHTML=`<div class="empty"><div class="empty-box" style="border-color:rgba(248,113,113,.3)">⚠</div><div class="empty-title" style="color:#f87171">Erro</div><div class="empty-sub" style="color:rgba(255,255,255,.3)">${esc(msg)}</div></div>`;
+    document.getElementById('preview').innerHTML=`<div class="empty"><div class="empty-box" style="border-color:rgba(248,113,113,.3)">⚠</div><div class="empty-title" style="color:#f87171">Erro</div><div class="empty-sub" style="color:rgba(255,255,255,.3)">${esc(msg)}<br><br><button class="btn-log" onclick="window.UpsellerUI.switchLeftTab('logs')">📋 Abrir Logs de Diagnóstico</button></div></div>`;
   }finally{
     cbtn.disabled=false;sp.classList.remove('on');icon.style.display='';lbl.textContent='Converter  ·  Ctrl+Enter';
   }
 }
 
-function showPdf(b){
+function showPdf(b, previewCanvases){
   const url=URL.createObjectURL(b);
+  // Se temos os canvases de alta precisão das páginas (etiquetas :Z64:/gráficas),
+  // exibimos as páginas visuais nítidas no Preview (evitando <embed> em branco no navegador)
+  // com botão para abrir o PDF nativo em nova guia se desejar.
+  if(previewCanvases && previewCanvases.length > 0){
+    const cardsHtml = previewCanvases.map((c, i) => {
+      const imgDataUrl = c.toDataURL('image/png');
+      return `
+        <div class="pdf-card" style="animation-delay:${i*40}ms">
+          <div class="pdf-page-caption">
+            <span><strong>Página ${i+1} de ${previewCanvases.length}</strong> · 100×150 mm (4×6 pol)</span>
+            <span>PDF pronto (${Math.round(b.size/1024)} KB)</span>
+          </div>
+          <img src="${imgDataUrl}" style="width:100%;display:block;background:#fff;" alt="Página PDF ${i+1}">
+        </div>
+      `;
+    }).join('');
+    document.getElementById('preview').innerHTML = cardsHtml;
+    return;
+  }
+
   document.getElementById('preview').innerHTML=`
     <div class="pdf-card">
       <embed src="${url}#toolbar=0&navpanes=0" type="application/pdf" id="pembed"/>
@@ -550,6 +1121,7 @@ function showPng(imgs){
 
 function doDownload(){
   if(!blob){toast('Converta primeiro!','error');return;}
+  if(window.DiagLogger)window.DiagLogger.log('ok','DOWNLOAD',`Baixando arquivo .${ext} (${blob.size} bytes).`);
   const url=URL.createObjectURL(blob),a=document.createElement('a');
   const ts=new Date().toISOString().slice(0,19).replace(/[T:]/g,'-');
   a.href=url;a.download=`etiqueta_${ts}.${ext}`;a.click();
@@ -557,19 +1129,30 @@ function doDownload(){
 }
 
 function setStatus(msg,type){
-  const el=document.getElementById('sbar');el.textContent=msg;
-  el.className='statusbar'+(type?' '+type:'');
+  const el=document.getElementById('sbar');
+  const txt=document.getElementById('sbar-txt');
+  if(txt)txt.textContent=msg; else if(el)el.textContent=msg;
+  if(el)el.className='statusbar'+(type?' '+type:'');
 }
 function toast(msg,type='info'){
   const w=document.getElementById('toasts'),d=document.createElement('div');
   d.className='toast '+type;d.textContent=msg;w.appendChild(d);
   setTimeout(()=>d.remove(),4000);
 }
-function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
-window.addEventListener('load',()=>{
-  loadSample(document.querySelector('.chip'));
-  checkApi();setInterval(checkApi,15000);
+window.addEventListener('load',async ()=>{
+  if(window.DiagLogger){
+    window.DiagLogger.logEnvironmentCheck();
+  }
+  if(window.UpsellerUI){
+    window.UpsellerUI.initUpsellerEvents();
+  }
+  syncGutter();
+  await checkApi();
+  if(location.hostname==='localhost'||location.hostname==='127.0.0.1'||isApiOnline){
+    setInterval(checkApi,15000);
+  }
 });
 </script>
 </body>
